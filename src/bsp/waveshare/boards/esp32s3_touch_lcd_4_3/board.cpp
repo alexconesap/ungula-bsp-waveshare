@@ -52,7 +52,7 @@ namespace bsp::ws::lcd43 {
 
     void setBacklight(uint8_t level) {
         bsp::waveshare::common::writePin(expander_pins::LCD_BL,
-                                          level != 0 ? LEVEL_HIGH : LEVEL_LOW);
+                                         level != 0 ? LEVEL_HIGH : LEVEL_LOW);
     }
 
     void backlightBlink() {
@@ -63,18 +63,15 @@ namespace bsp::ws::lcd43 {
     }
 
     void sdCs(bool asserted) {
-        bsp::waveshare::common::writePin(expander_pins::SD_CS,
-                                          asserted ? LEVEL_LOW : LEVEL_HIGH);
+        bsp::waveshare::common::writePin(expander_pins::SD_CS, asserted ? LEVEL_LOW : LEVEL_HIGH);
     }
 
     void lcdReset(bool asserted) {
-        bsp::waveshare::common::writePin(expander_pins::LCD_RST,
-                                          asserted ? LEVEL_LOW : LEVEL_HIGH);
+        bsp::waveshare::common::writePin(expander_pins::LCD_RST, asserted ? LEVEL_LOW : LEVEL_HIGH);
     }
 
     void touchReset(bool asserted) {
-        bsp::waveshare::common::writePin(expander_pins::TP_RST,
-                                          asserted ? LEVEL_LOW : LEVEL_HIGH);
+        bsp::waveshare::common::writePin(expander_pins::TP_RST, asserted ? LEVEL_LOW : LEVEL_HIGH);
     }
 
 }  // namespace bsp::ws::lcd43

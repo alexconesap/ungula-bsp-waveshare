@@ -22,8 +22,8 @@ namespace bsp::waveshare::common {
 
     bool ensureInit(int8_t sdaPin, int8_t sclPin, uint8_t outputPinsMask) {
         if (s_expander == nullptr) {
-            s_expander = new esp_expander::CH422G(sclPin, sdaPin,
-                                                   ESP_IO_EXPANDER_I2C_CH422G_ADDRESS);
+            s_expander =
+                    new esp_expander::CH422G(sclPin, sdaPin, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS);
             s_expander->init();
             s_expander->begin();
         }
@@ -51,7 +51,7 @@ namespace bsp::waveshare::common {
 
 }  // namespace bsp::waveshare::common
 
-#else   // ESP_PLATFORM
+#else  // ESP_PLATFORM
 
 // Off-target stubs so unit tests / host-side builds compile.
 namespace bsp::waveshare::common {

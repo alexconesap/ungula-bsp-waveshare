@@ -45,10 +45,9 @@ namespace {
         cfg.enableLcd = true;
         cfg.enableTouch = true;
         cfg.enableSdCs = true;
-        const uint8_t expected = bit(board::expander_pins::LCD_BL) |
-                                 bit(board::expander_pins::LCD_RST) |
-                                 bit(board::expander_pins::TP_RST) |
-                                 bit(board::expander_pins::SD_CS);
+        const uint8_t expected =
+                bit(board::expander_pins::LCD_BL) | bit(board::expander_pins::LCD_RST) |
+                bit(board::expander_pins::TP_RST) | bit(board::expander_pins::SD_CS);
         EXPECT_EQ(outputPinsMaskFor(cfg), expected);
     }
 

@@ -112,11 +112,11 @@ namespace bsp::ws::lcd7 {
     // the board module doesn't wrap. Keep this list minimal — new
     // use-cases should get a proper purpose-named helper above.
     namespace expander_pins {
-        constexpr uint8_t TP_RST = 1;    // GT911 touch reset
-        constexpr uint8_t LCD_BL = 2;    // LCD backlight (LOW = off)
-        constexpr uint8_t LCD_RST = 3;   // LCD reset
-        constexpr uint8_t SD_CS = 4;     // SD card chip-select
-        constexpr uint8_t USB_SEL = 5;   // USB host/device select
+        constexpr uint8_t TP_RST = 1;   // GT911 touch reset
+        constexpr uint8_t LCD_BL = 2;   // LCD backlight (LOW = off)
+        constexpr uint8_t LCD_RST = 3;  // LCD reset
+        constexpr uint8_t SD_CS = 4;    // SD card chip-select
+        constexpr uint8_t USB_SEL = 5;  // USB host/device select
     }  // namespace expander_pins
 
     namespace detail {

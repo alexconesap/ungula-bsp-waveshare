@@ -27,8 +27,8 @@ namespace bsp::waveshare::common {
 
     /// I/O direction for `pinMode()`.
     enum class PinMode : uint8_t {
-            Output = 0,
-            Input = 1,
+        Output = 0,
+        Input = 1,
     };
 
     /// Bring the expander up on the given I2C bus. Safe to call multiple
