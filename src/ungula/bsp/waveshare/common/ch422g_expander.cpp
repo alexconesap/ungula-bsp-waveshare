@@ -8,7 +8,7 @@
 
 #include <esp_io_expander.hpp>
 
-namespace bsp::waveshare::common {
+namespace ungula::bsp::waveshare::common {
 
     namespace {
 
@@ -49,12 +49,12 @@ namespace bsp::waveshare::common {
         return s_expander != nullptr;
     }
 
-}  // namespace bsp::waveshare::common
+}  // namespace ungula::bsp::waveshare::common
 
 #else  // ESP_PLATFORM
 
 // Off-target stubs so unit tests / host-side builds compile.
-namespace bsp::waveshare::common {
+namespace ungula::bsp::waveshare::common {
     bool ensureInit(int8_t, int8_t, uint8_t) {
         return false;
     }
@@ -62,6 +62,6 @@ namespace bsp::waveshare::common {
     bool isReady() {
         return false;
     }
-}  // namespace bsp::waveshare::common
+}  // namespace ungula::bsp::waveshare::common
 
 #endif  // ESP_PLATFORM

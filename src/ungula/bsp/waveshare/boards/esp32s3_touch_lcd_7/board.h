@@ -28,7 +28,7 @@
 /// boot (e.g. SD sink and UI both calling it). The first call brings the
 /// expander up; later calls just OR their required pins into its config.
 
-namespace bsp::ws::lcd7 {
+namespace ungula::bsp::waveshare::lcd7 {
 
     struct Config {
             /// Route SD chip-select through the expander pin. Set when the
@@ -142,4 +142,4 @@ namespace bsp::ws::lcd7 {
 
     }  // namespace detail
 
-}  // namespace bsp::ws::lcd7
+}  // namespace ungula::bsp::waveshare::lcd7

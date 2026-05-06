@@ -17,14 +17,14 @@ Target: ESP32 (`architectures=esp32`). Depends on `UngulaCore`,
 ### Use case: bring up the LCD with backlight on at boot
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 void setup() {
-    bsp::ws::lcd7::init({
+    ungula::bsp::waveshare::lcd7::init({
         .enableSdCs       = false,
         .enableLcd        = true,
         .enableTouch      = false,
-        .initialBacklight = bsp::waveshare::common::LEVEL_HIGH,
+        .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
     });
 }
 
@@ -37,9 +37,9 @@ expander, LCD reset pulse, and backlight all handled in one call.
 ### Use case: SD card over SPI with CS on the expander
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
-namespace board = bsp::ws::lcd7;
+namespace board = ungula::bsp::waveshare::lcd7;
 
 void setup() {
     board::init({ .enableSdCs = true });
@@ -57,19 +57,19 @@ the SPI bus driver only deals with MOSI/MISO/SCK.
 ### Use case: two subsystems both need the expander
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 void bootUi() {
-    bsp::ws::lcd7::init({
+    ungula::bsp::waveshare::lcd7::init({
         .enableLcd        = true,
         .enableTouch      = true,
-        .initialBacklight = bsp::waveshare::common::LEVEL_HIGH,
+        .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
     });
 }
 
 void bootSdSink() {
-    bsp::ws::lcd7::init({ .enableSdCs = true });  // OR-s SD_CS into existing config
-    bsp::ws::lcd7::sdCs(true);
+    ungula::bsp::waveshare::lcd7::init({ .enableSdCs = true });  // OR-s SD_CS into existing config
+    ungula::bsp::waveshare::lcd7::sdCs(true);
 }
 
 void setup() {
@@ -86,10 +86,10 @@ diffuse. `init()` is idempotent and merges output pin masks.
 ### Use case: error indicator via backlight blink
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 void onFault() {
-    bsp::ws::lcd7::backlightBlink();
+    ungula::bsp::waveshare::lcd7::backlightBlink();
 }
 ```
 
@@ -99,13 +99,13 @@ called internally by `init()` as a boot-sanity pulse.
 ### Use case: manual LCD or touch reset
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
-#include <time/time_control.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/core/time/time_control.h>
 
 void resequenceTouchPanel() {
-    bsp::ws::lcd7::touchReset(true);
-    ungula::TimeControl::delayMs(10);
-    bsp::ws::lcd7::touchReset(false);
+    ungula::bsp::waveshare::lcd7::touchReset(true);
+    ungula::core::time::TimeControl::delayMs(10);
+    ungula::bsp::waveshare::lcd7::touchReset(false);
 }
 ```
 
@@ -115,9 +115,9 @@ already performs the LCD reset pulse once.
 ### Use case: 4.3" board (placeholder pin map)
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_4_3/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_4_3/board.h>
 
-namespace board = bsp::ws::lcd43;  // identical surface to lcd7
+namespace board = ungula::bsp::waveshare::lcd43;  // identical surface to lcd7
 
 void setup() {
     board::init({ .enableLcd = true, .initialBacklight = 1 });
@@ -129,7 +129,7 @@ void loop() {}
 When to use this: code targeting the 4.3" model. The API mirrors `lcd7`
 exactly — switch boards by changing the `namespace board =` alias.
 
-WARNING: pin map and CH422G assignments in `bsp::ws::lcd43` are placeholders.
+WARNING: pin map and CH422G assignments in `ungula::bsp::waveshare::lcd43` are placeholders.
 Do not flash against real hardware until the schematic is confirmed
 (see `TODO(waveshare-4.3)` markers in `board.h`).
 
@@ -139,8 +139,8 @@ Do not flash against real hardware until the schematic is confirmed
 
 | Board | Header | Namespace | Status |
 | --- | --- | --- | --- |
-| Waveshare ESP32-S3-Touch-LCD-7 | `bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h` | `bsp::ws::lcd7` | Verified on hardware |
-| Waveshare ESP32-S3-Touch-LCD-4.3 | `bsp/waveshare/boards/esp32s3_touch_lcd_4_3/board.h` | `bsp::ws::lcd43` | Pin map placeholder |
+| Waveshare ESP32-S3-Touch-LCD-7 | `ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h` | `ungula::bsp::waveshare::lcd7` | Verified on hardware |
+| Waveshare ESP32-S3-Touch-LCD-4.3 | `ungula/bsp/waveshare/boards/esp32s3_touch_lcd_4_3/board.h` | `ungula::bsp::waveshare::lcd43` | Pin map placeholder |
 
 Both modules expose the same symbols (`init`, `setBacklight`,
 `backlightBlink`, `sdCs`, `lcdReset`, `touchReset`, `pins::*`,
@@ -150,7 +150,7 @@ Both modules expose the same symbols (`init`, `setBacklight`,
 
 ## Pin map
 
-### `bsp::ws::lcd7::pins` (verified)
+### `ungula::bsp::waveshare::lcd7::pins` (verified)
 
 | Constant | Value | Function |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ Both modules expose the same symbols (`init`, `setBacklight`,
 | `SD_SPI_SCK`  | 12 | SPI SCK |
 | `SD_SPI_MISO` | 13 | SPI MISO |
 
-### `bsp::ws::lcd43::pins` (placeholder — same values pending schematic)
+### `ungula::bsp::waveshare::lcd43::pins` (placeholder — same values pending schematic)
 
 Same constants as `lcd7`, marked `TODO(waveshare-4.3)`.
 
@@ -177,14 +177,14 @@ Identical layout in both boards (4.3" assumed, not confirmed):
 | `expander_pins::USB_SEL` | 5 | USB host/device select |
 
 `USB_SEL` has no purpose-named helper. Reach it via
-`bsp::waveshare::common::writePin(expander_pins::USB_SEL, level)` only if
+`ungula::bsp::waveshare::common::writePin(expander_pins::USB_SEL, level)` only if
 no other entry point covers the use case.
 
 ---
 
 ## Public types
 
-### `bsp::ws::lcd7::Config` (and identical `bsp::ws::lcd43::Config`)
+### `ungula::bsp::waveshare::lcd7::Config` (and identical `ungula::bsp::waveshare::lcd43::Config`)
 
 ```cpp
 struct Config {
@@ -207,7 +207,7 @@ Field meaning:
 Flags are independent: any combination is valid. Subsequent `init()` calls
 OR their masks into the existing expander config.
 
-### `bsp::waveshare::common::PinMode`
+### `ungula::bsp::waveshare::common::PinMode`
 
 ```cpp
 enum class PinMode : uint8_t { Output = 0, Input = 1 };
@@ -216,7 +216,7 @@ enum class PinMode : uint8_t { Output = 0, Input = 1 };
 Direction value for the shared expander layer. Board modules currently
 register only outputs.
 
-### `bsp::waveshare::common` constants
+### `ungula::bsp::waveshare::common` constants
 
 ```cpp
 constexpr uint8_t LEVEL_LOW  = 0;
@@ -230,7 +230,7 @@ pulling Arduino macros into headers.
 
 ## Public functions
 
-### Per-board (`bsp::ws::lcd7`, `bsp::ws::lcd43`)
+### Per-board (`ungula::bsp::waveshare::lcd7`, `ungula::bsp::waveshare::lcd43`)
 
 #### `bool init(const Config& cfg)`
 
@@ -241,7 +241,7 @@ pulling Arduino macros into headers.
 - **Returns**: `true` on success. `false` only if the CH422G did not ACK
   on I2C (missing board, wrong SDA/SCL).
 - **Side effects**: I2C transactions to address `0x24`; expander output
-  pin state changes; ~10 ms LCD reset pulse via `ungula::TimeControl`.
+  pin state changes; ~10 ms LCD reset pulse via `ungula::core::time::TimeControl`.
 - **Idempotent**: yes. Subsequent calls only OR new pins into the mask
   and may re-apply `initialBacklight`.
 - **Usage notes**: must run after Arduino `setup()` is reached but before
@@ -269,7 +269,7 @@ pulling Arduino macros into headers.
 
 - Same shape as `lcdReset`, for the GT911 touch controller.
 
-### Shared expander (`bsp::waveshare::common`)
+### Shared expander (`ungula::bsp::waveshare::common`)
 
 The board modules use these internally. Host code should reach them only
 when no purpose-named board helper exists for the pin (e.g. `USB_SEL`).
@@ -323,7 +323,7 @@ Violation behavior:
 - `init()` and `ensureInit()` return `bool`. `false` means I2C ACK failure.
   No exceptions are thrown; errno is not used.
 - All pin-write helpers are silent no-ops when the expander is not ready.
-  No error code is returned. Use `bsp::waveshare::common::isReady()` to
+  No error code is returned. Use `ungula::bsp::waveshare::common::isReady()` to
   query state explicitly.
 - No logging is performed inside the library (per project rule —
   logging is the host's responsibility).
@@ -333,7 +333,7 @@ Violation behavior:
 ## Threading / timing / hardware notes
 
 - I2C address: CH422G at `0x24` (declared internally; not exposed).
-- LCD reset pulse: ~10 ms, sourced from `ungula::TimeControl` rather than
+- LCD reset pulse: ~10 ms, sourced from `ungula::core::time::TimeControl` rather than
   Arduino `delay()`.
 - Not interrupt-safe: do not call any function from an ISR. The CH422G
   driver issues blocking I2C transactions.
@@ -347,7 +347,7 @@ Violation behavior:
 
 ## Internals not part of the public API
 
-- `bsp::waveshare::common::ensureInit` / `writePin` / `isReady` —
+- `ungula::bsp::waveshare::common::ensureInit` / `writePin` / `isReady` —
   technically reachable, but host code should go through the board
   module's purpose-named helpers. Direct use is allowed only for
   expander pins with no purpose-named wrapper (currently `USB_SEL`).
@@ -355,7 +355,7 @@ Violation behavior:
 - `ch422g_expander.cpp` internals (driver pointer, init flag) — not
   exposed; do not include or extern.
 - `board.cpp` translation units — implementation detail.
-- The umbrella header `<ungula_bsp_waveshare.h>` exists only to make
+- The umbrella header `<ungula/bsp/waveshare.h>` exists only to make
   Arduino CLI discover the library. It does not pull in any board
   module — application code must include the specific board header.
 
@@ -376,7 +376,7 @@ The library is mostly deep, but a few sharp edges stand out:
 3. **Compile-time board selector.** A small wrapper header that picks
    `lcd7` vs `lcd43` from a build flag would let host code drop the
    `namespace board = ...;` alias dance. Proposed:
-   `<bsp/waveshare/board.h>` driven by `BOARD_WAVESHARE_S3_LCD7` /
+   `<ungula/bsp/waveshare/board.h>` driven by `BOARD_WAVESHARE_S3_LCD7` /
    `BOARD_WAVESHARE_S3_LCD43`.
 4. **`Config` validation.** `initialBacklight` accepts any `uint8_t` but
    only `0` and `1` are meaningful. Proposed: `enum class Backlight :
@@ -391,7 +391,7 @@ Treat every item above as a proposal, not as existing API.
 ## LLM usage rules
 
 - Use only the symbols documented here. Do not include
-  `bsp/waveshare/common/ch422g_expander.h` directly unless writing a new
+  `ungula/bsp/waveshare/common/ch422g_expander.h` directly unless writing a new
   board module inside this library.
 - Prefer the per-board purpose-named helpers (`setBacklight`, `sdCs`,
   `lcdReset`, `touchReset`) over `common::writePin`.
@@ -403,8 +403,8 @@ Treat every item above as a proposal, not as existing API.
   do anything. Helpers are no-ops, not errors, before then.
 - `delay()` / `millis()` / `digitalWrite()` are not used by this
   library; do not introduce them when extending it (use
-  `ungula::TimeControl` and the shared expander instead).
+  `ungula::core::time::TimeControl` and the shared expander instead).
 - If a needed feature is missing (e.g. USB-host select), say so
   explicitly rather than reaching past the public surface.
-- Preserve the namespace path (`bsp::ws::lcd7`, `bsp::waveshare::common`)
+- Preserve the namespace path (`ungula::bsp::waveshare::lcd7`, `ungula::bsp::waveshare::common`)
   exactly — these are the documented entry points.

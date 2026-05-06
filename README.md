@@ -56,12 +56,12 @@ Two problems: two owners of the same chip (depending on the driver, that's undef
 With the BSP, both sites just say what they need:
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
-bsp::ws::lcd7::init({
+ungula::bsp::waveshare::lcd7::init({
     .enableLcd        = true,
     .enableSdCs       = true,
-    .initialBacklight = bsp::waveshare::common::LEVEL_HIGH,
+    .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
 });
 ```
 
@@ -71,29 +71,29 @@ The first call brings the expander up, registers the requested pins as outputs, 
 
 | Board | Header | Namespace | Status |
 | --- | --- | --- | --- |
-| Waveshare ESP32-S3-Touch-LCD-7 (7″) | `bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h` | `bsp::ws::lcd7` | Verified against real hardware |
-| Waveshare ESP32-S3-Touch-LCD-4.3 (4.3″) | `bsp/waveshare/boards/esp32s3_touch_lcd_4_3/board.h` | `bsp::ws::lcd43` | **Pin map is placeholder — do not flash against real hardware until the schematic is confirmed.** |
+| Waveshare ESP32-S3-Touch-LCD-7 (7″) | `ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h` | `ungula::bsp::waveshare::lcd7` | Verified against real hardware |
+| Waveshare ESP32-S3-Touch-LCD-4.3 (4.3″) | `ungula/bsp/waveshare/boards/esp32s3_touch_lcd_4_3/board.h` | `ungula::bsp::waveshare::lcd43` | **Pin map is placeholder — do not flash against real hardware until the schematic is confirmed.** |
 
-Both board modules expose the same API surface, so host code that aliases `namespace board = bsp::ws::lcd7;` can swap models by changing the alias.
+Both board modules expose the same API surface, so host code that aliases `namespace board = ungula::bsp::waveshare::lcd7;` can swap models by changing the alias.
 
 ## Quick start — ESP32-S3-Touch-LCD-7
 
 The typical wiring: CH422G expander on I²C, RGB panel driven directly by ESP32-S3 pins, microSD over SPI with the CS line routed through the expander. All pin facts come from the board module — the application never hard-codes them.
 
 ```cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
-#include <hal/spi/spi_master.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/hal/spi/spi_master.h>
 
-namespace board = bsp::ws::lcd7;
+namespace board = ungula::bsp::waveshare::lcd7;
 
 // Project-level knobs that aren't board facts — keep them named so
 // someone reading setup() doesn't have to guess what a literal means.
 constexpr uint32_t SD_SPI_FREQ_HZ     = 10'000'000;
 constexpr uint8_t  SD_SPI_MODE        = 0;
 constexpr int8_t   SD_SPI_CS_UNUSED   = -1;  // CS is on the expander, not the bus.
-constexpr uint8_t  INITIAL_BACKLIGHT  = bsp::waveshare::common::LEVEL_HIGH;
+constexpr uint8_t  INITIAL_BACKLIGHT  = ungula::bsp::waveshare::common::LEVEL_HIGH;
 
-ungula::spi::SpiMaster sdSpi;
+ungula::hal::spi::SpiMaster sdSpi;
 
 void setup() {
     // One call covers: expander wake-up on I2C, LCD reset pulse,
@@ -132,13 +132,13 @@ This is the pattern that motivated the library — the UI subsystem and the SD l
 
 ```cpp
 // src/boot/ui_boot.cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 void bootUi() {
-    bsp::ws::lcd7::init({
+    ungula::bsp::waveshare::lcd7::init({
         .enableLcd        = true,
         .enableTouch      = true,
-        .initialBacklight = bsp::waveshare::common::LEVEL_HIGH,
+        .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
     });
     // LCD is now reset, backlight is on, touch reset pin is an output.
     startDisplayStack();
@@ -147,13 +147,13 @@ void bootUi() {
 
 ```cpp
 // src/boot/sd_boot.cpp
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 void bootSdSink() {
-    bsp::ws::lcd7::init({ .enableSdCs = true });
+    ungula::bsp::waveshare::lcd7::init({ .enableSdCs = true });
     // Expander is already up from bootUi(); this call only OR-s the
     // SD_CS pin into the output mask and returns.
-    bsp::ws::lcd7::sdCs(true);
+    ungula::bsp::waveshare::lcd7::sdCs(true);
     mountSdFilesystem();
 }
 ```
@@ -162,7 +162,7 @@ Boot-order sensitivity: call order between `bootUi()` and `bootSdSink()` does no
 
 ## API reference
 
-### Per-board module (`bsp::ws::lcd7`, `bsp::ws::lcd43`)
+### Per-board module (`ungula::bsp::waveshare::lcd7`, `ungula::bsp::waveshare::lcd43`)
 
 | Function | Description |
 | --- | --- |
@@ -182,13 +182,13 @@ struct Config {
     bool enableSdCs       = false;  // register SD CS as expander output
     bool enableLcd        = false;  // register LCD reset + backlight, pulse reset
     bool enableTouch      = false;  // register GT911 reset as expander output
-    uint8_t initialBacklight = bsp::waveshare::common::LEVEL_LOW;  // applied only if enableLcd
+    uint8_t initialBacklight = ungula::bsp::waveshare::common::LEVEL_LOW;  // applied only if enableLcd
 };
 ```
 
 The flags are independent on purpose: a project might want the LCD lit for a boot splash without bringing the touch stack up, or might want SD without ever enabling the display.
 
-### Shared CH422G owner (`bsp::waveshare::common`)
+### Shared CH422G owner (`ungula::bsp::waveshare::common`)
 
 Internal to the BSP. Board modules call `ensureInit()` / `writePin()` on this owner; host projects should not use it directly — go through the board module's purpose-named helpers instead.
 
@@ -202,9 +202,9 @@ src/
       ch422g_expander.h / .cpp                  # single CH422G owner
     boards/
       esp32s3_touch_lcd_7/
-        board.h / .cpp                          # bsp::ws::lcd7
+        board.h / .cpp                          # ungula::bsp::waveshare::lcd7
       esp32s3_touch_lcd_4_3/
-        board.h / .cpp                          # bsp::ws::lcd43 (pin map TBD)
+        board.h / .cpp                          # ungula::bsp::waveshare::lcd43 (pin map TBD)
 ```
 
 ## Dependencies
@@ -250,7 +250,7 @@ cd lib_bsp_waveshare/tests
 
 1. Create `src/bsp/waveshare/boards/<model>/board.h` + `.cpp` alongside the existing ones.
 2. Expose the same API surface (`init`, `setBacklight`, `backlightBlink`, `sdCs`, `lcdReset`, `touchReset`, `pins::`, `expander_pins::`) so host code that aliases the namespace can swap models.
-3. Reuse `bsp::waveshare::common::ensureInit` / `writePin` — don't touch the expander driver directly.
+3. Reuse `ungula::bsp::waveshare::common::ensureInit` / `writePin` — don't touch the expander driver directly.
 4. Bump `library.properties` / `.version`, update `docs/LIBRARY_VERSIONS.md`.
 
 ## Acknowledgements

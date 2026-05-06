@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 namespace {
 
-    namespace board = bsp::ws::lcd7;
+    namespace board = ungula::bsp::waveshare::lcd7;
     using board::Config;
     using board::detail::outputPinsMaskFor;
 

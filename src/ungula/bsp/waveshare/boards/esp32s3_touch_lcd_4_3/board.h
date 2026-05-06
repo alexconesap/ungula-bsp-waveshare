@@ -18,7 +18,7 @@
 /// 4.3" board schematic is confirmed. Do not flash against this module
 /// with real hardware until the marked values are verified.
 
-namespace bsp::ws::lcd43 {
+namespace ungula::bsp::waveshare::lcd43 {
 
     struct Config {
             bool enableSdCs = false;
@@ -78,4 +78,4 @@ namespace bsp::ws::lcd43 {
 
     }  // namespace detail
 
-}  // namespace bsp::ws::lcd43
+}  // namespace ungula::bsp::waveshare::lcd43
