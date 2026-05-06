@@ -104,7 +104,7 @@ called internally by `init()` as a boot-sanity pulse.
 
 void resequenceTouchPanel() {
     ungula::bsp::waveshare::lcd7::touchReset(true);
-    ungula::core::time::TimeControl::delayMs(10);
+    ungula::core::time::delayMs(10);
     ungula::bsp::waveshare::lcd7::touchReset(false);
 }
 ```
@@ -241,7 +241,7 @@ pulling Arduino macros into headers.
 - **Returns**: `true` on success. `false` only if the CH422G did not ACK
   on I2C (missing board, wrong SDA/SCL).
 - **Side effects**: I2C transactions to address `0x24`; expander output
-  pin state changes; ~10 ms LCD reset pulse via `ungula::core::time::TimeControl`.
+  pin state changes; ~10 ms LCD reset pulse via `ungula::core::time`.
 - **Idempotent**: yes. Subsequent calls only OR new pins into the mask
   and may re-apply `initialBacklight`.
 - **Usage notes**: must run after Arduino `setup()` is reached but before
@@ -333,7 +333,7 @@ Violation behavior:
 ## Threading / timing / hardware notes
 
 - I2C address: CH422G at `0x24` (declared internally; not exposed).
-- LCD reset pulse: ~10 ms, sourced from `ungula::core::time::TimeControl` rather than
+- LCD reset pulse: ~10 ms, sourced from `ungula::core::time` rather than
   Arduino `delay()`.
 - Not interrupt-safe: do not call any function from an ISR. The CH422G
   driver issues blocking I2C transactions.
@@ -403,7 +403,7 @@ Treat every item above as a proposal, not as existing API.
   do anything. Helpers are no-ops, not errors, before then.
 - `delay()` / `millis()` / `digitalWrite()` are not used by this
   library; do not introduce them when extending it (use
-  `ungula::core::time::TimeControl` and the shared expander instead).
+  `ungula::core::time` and the shared expander instead).
 - If a needed feature is missing (e.g. USB-host select), say so
   explicitly rather than reaching past the public surface.
 - Preserve the namespace path (`ungula::bsp::waveshare::lcd7`, `ungula::bsp::waveshare::common`)

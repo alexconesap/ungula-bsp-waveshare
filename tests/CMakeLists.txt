@@ -19,7 +19,7 @@ set(LIB_BSP_SRC ${CMAKE_CURRENT_LIST_DIR}/../src)
 
 # We only test pure, ESP-IDF-free code on the host (the pin-mask builders
 # in each board's detail:: namespace). No board.cpp sources are compiled
-# here — those pull in ESP32_IO_Expander and TimeControl. Hardware smoke
+# here — those pull in ESP32_IO_Expander and the time API. Hardware smoke
 # checks live in the host project that flashes the real board.
 include_directories(
     ${LIB_BSP_SRC}

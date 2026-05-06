@@ -57,9 +57,9 @@ namespace ungula::bsp::waveshare::lcd43 {
 
     void backlightBlink() {
         setBacklight(0);
-        ungula::core::time::TimeControl::delay(BLINK_HALF_PERIOD_MS);
+        ungula::core::time::delay(BLINK_HALF_PERIOD_MS);
         setBacklight(1);
-        ungula::core::time::TimeControl::delay(BLINK_HALF_PERIOD_MS);
+        ungula::core::time::delay(BLINK_HALF_PERIOD_MS);
     }
 
     void sdCs(bool asserted) {

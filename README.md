@@ -211,7 +211,7 @@ src/
 
 | Library | Origin | Used for |
 | --- | --- | --- |
-| UngulaCore | Sibling lib in `cpp-libraries/` | `TimeControl` (reset pulse timing, backlight blink) |
+| UngulaCore | Sibling lib in `cpp-libraries/` | `ungula::core::time` (reset pulse timing, backlight blink) |
 | UngulaHal | Sibling lib in `cpp-libraries/` | Nothing at runtime today — declared for future board modules that register GPIO pins via `hal/gpio/gpio_access` |
 | ESP32_IO_Expander | **External** (esp-arduino-libs) | Actual CH422G driver. ESP32 target only. |
 
