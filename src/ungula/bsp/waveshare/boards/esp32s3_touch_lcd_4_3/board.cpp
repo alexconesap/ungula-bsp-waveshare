@@ -16,7 +16,7 @@
 
 #include "board.h"
 
-#include <bsp/waveshare/common/ch422g_expander.h>
+#include <ungula/bsp/waveshare/common/ch422g_expander.h>
 #include <ungula/core/time/time_control.h>
 
 namespace ungula::bsp::waveshare::lcd43 {
