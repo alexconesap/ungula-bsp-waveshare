@@ -178,6 +178,8 @@ Boot-order sensitivity: call order between `bootUi()` and `bootSdSink()` does no
 ### `Config` struct
 
 ```cpp
+#include <ungula/bsp/waveshare.h>
+
 struct Config {
     bool enableSdCs       = false;  // register SD CS as expander output
     bool enableLcd        = false;  // register LCD reset + backlight, pulse reset
