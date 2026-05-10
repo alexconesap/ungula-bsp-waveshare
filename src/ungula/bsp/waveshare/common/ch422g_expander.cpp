@@ -8,22 +8,24 @@
 
 #include <esp_io_expander.hpp>
 
-namespace ungula::bsp::waveshare::common {
+namespace ungula::bsp::waveshare::common
+{
 
-    namespace {
+    namespace
+    {
 
         // Single-instance state. The BSP is the only owner of the chip on
         // any given project; multiple board / project consumers funnel
         // through ensureInit() + writePin().
-        esp_expander::CH422G* s_expander = nullptr;
+        esp_expander::CH422G *s_expander = nullptr;
         uint8_t s_outputPinsMask = 0;
 
-    }  // namespace
+    } // namespace
 
-    bool ensureInit(int8_t sdaPin, int8_t sclPin, uint8_t outputPinsMask) {
+    bool ensureInit(int8_t sdaPin, int8_t sclPin, uint8_t outputPinsMask)
+    {
         if (s_expander == nullptr) {
-            s_expander =
-                    new esp_expander::CH422G(sclPin, sdaPin, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS);
+            s_expander = new esp_expander::CH422G(sclPin, sdaPin, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS);
             s_expander->init();
             s_expander->begin();
         }
@@ -38,30 +40,37 @@ namespace ungula::bsp::waveshare::common {
         return true;
     }
 
-    void writePin(uint8_t pinNumber, uint8_t level) {
+    void writePin(uint8_t pinNumber, uint8_t level)
+    {
         if (s_expander == nullptr) {
             return;
         }
         s_expander->digitalWrite(pinNumber, level);
     }
 
-    bool isReady() {
+    bool isReady()
+    {
         return s_expander != nullptr;
     }
 
-}  // namespace ungula::bsp::waveshare::common
+} // namespace ungula::bsp::waveshare::common
 
-#else  // ESP_PLATFORM
+#else // ESP_PLATFORM
 
 // Off-target stubs so unit tests / host-side builds compile.
-namespace ungula::bsp::waveshare::common {
-    bool ensureInit(int8_t, int8_t, uint8_t) {
+namespace ungula::bsp::waveshare::common
+{
+    bool ensureInit(int8_t, int8_t, uint8_t)
+    {
         return false;
     }
-    void writePin(uint8_t, uint8_t) {}
-    bool isReady() {
+    void writePin(uint8_t, uint8_t)
+    {
+    }
+    bool isReady()
+    {
         return false;
     }
-}  // namespace ungula::bsp::waveshare::common
+} // namespace ungula::bsp::waveshare::common
 
-#endif  // ESP_PLATFORM
+#endif // ESP_PLATFORM

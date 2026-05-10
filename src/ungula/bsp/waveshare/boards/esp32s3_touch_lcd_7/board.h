@@ -28,32 +28,33 @@
 /// boot (e.g. SD sink and UI both calling it). The first call brings the
 /// expander up; later calls just OR their required pins into its config.
 
-namespace ungula::bsp::waveshare::lcd7 {
+namespace ungula::bsp::waveshare::lcd7
+{
 
     struct Config {
-            /// Route SD chip-select through the expander pin. Set when the
-            /// firmware uses the onboard microSD slot.
-            bool enableSdCs = false;
+        /// Route SD chip-select through the expander pin. Set when the
+        /// firmware uses the onboard microSD slot.
+        bool enableSdCs = false;
 
-            /// Configure the LCD reset and backlight expander pins.
-            /// Independent of enableTouch because some projects want the
-            /// panel lit (e.g. logo screen) without a touch stack.
-            bool enableLcd = false;
+        /// Configure the LCD reset and backlight expander pins.
+        /// Independent of enableTouch because some projects want the
+        /// panel lit (e.g. logo screen) without a touch stack.
+        bool enableLcd = false;
 
-            /// Configure the touch controller reset expander pin.
-            bool enableTouch = false;
+        /// Configure the touch controller reset expander pin.
+        bool enableTouch = false;
 
-            /// Initial backlight level (0 = off, 1 = on). Only applied
-            /// when enableLcd is true. A visual boot blink is still
-            /// performed regardless, so the operator sees life on boot
-            /// even if the UI takes seconds to come up.
-            uint8_t initialBacklight = 0;
+        /// Initial backlight level (0 = off, 1 = on). Only applied
+        /// when enableLcd is true. A visual boot blink is still
+        /// performed regardless, so the operator sees life on boot
+        /// even if the UI takes seconds to come up.
+        uint8_t initialBacklight = 0;
     };
 
     /// Bring up the expander with exactly the pins requested in `cfg`.
     /// Idempotent — safe to call more than once. Returns false if the
     /// expander failed to respond on I2C (missing board? wrong SDA/SCL?).
-    bool init(const Config& cfg);
+    bool init(const Config &cfg);
 
     // ---- Purpose-named pin control ----
     //
@@ -90,7 +91,8 @@ namespace ungula::bsp::waveshare::lcd7 {
     // wire up peripherals (SPI bus, I2C bus, fan PWM, whatever) against
     // the board without guessing GPIO numbers.
 
-    namespace pins {
+    namespace pins
+    {
 
         // I2C bus shared with the GT911 touch controller (separate I2C
         // port for the controller — this is the expander bus).
@@ -104,28 +106,31 @@ namespace ungula::bsp::waveshare::lcd7 {
         constexpr int8_t SD_SPI_SCK = 12;
         constexpr int8_t SD_SPI_MISO = 13;
 
-    }  // namespace pins
+    } // namespace pins
 
     // ---- CH422G expander pin assignments (internal use by board.cpp) ----
     //
     // Exposed because an advanced consumer might want to bit-bang a pin
     // the board module doesn't wrap. Keep this list minimal — new
     // use-cases should get a proper purpose-named helper above.
-    namespace expander_pins {
-        constexpr uint8_t TP_RST = 1;   // GT911 touch reset
-        constexpr uint8_t LCD_BL = 2;   // LCD backlight (LOW = off)
-        constexpr uint8_t LCD_RST = 3;  // LCD reset
-        constexpr uint8_t SD_CS = 4;    // SD card chip-select
-        constexpr uint8_t USB_SEL = 5;  // USB host/device select
-    }  // namespace expander_pins
+    namespace expander_pins
+    {
+        constexpr uint8_t TP_RST = 1; // GT911 touch reset
+        constexpr uint8_t LCD_BL = 2; // LCD backlight (LOW = off)
+        constexpr uint8_t LCD_RST = 3; // LCD reset
+        constexpr uint8_t SD_CS = 4; // SD card chip-select
+        constexpr uint8_t USB_SEL = 5; // USB host/device select
+    } // namespace expander_pins
 
-    namespace detail {
+    namespace detail
+    {
 
         /// Map a Config to the bitmask of expander pins that need to be
         /// registered as outputs. Pure function — exposed for host tests
         /// that want to verify "only the requested subsystems claim pins"
         /// without an expander on the wire.
-        constexpr uint8_t outputPinsMaskFor(const Config& cfg) {
+        constexpr uint8_t outputPinsMaskFor(const Config &cfg)
+        {
             uint8_t mask = 0;
             if (cfg.enableLcd) {
                 mask |= static_cast<uint8_t>(1U << expander_pins::LCD_BL);
@@ -140,6 +145,6 @@ namespace ungula::bsp::waveshare::lcd7 {
             return mask;
         }
 
-    }  // namespace detail
+    } // namespace detail
 
-}  // namespace ungula::bsp::waveshare::lcd7
+} // namespace ungula::bsp::waveshare::lcd7

@@ -18,7 +18,8 @@
 /// The exact CH422G pin → function map is board-specific and lives in each
 /// board module. This file only deals with "talk to the chip" mechanics.
 
-namespace ungula::bsp::waveshare::common {
+namespace ungula::bsp::waveshare::common
+{
 
     /// Logical levels — match the CH422G driver's expected values without
     /// dragging Arduino macros into the header.
@@ -51,4 +52,4 @@ namespace ungula::bsp::waveshare::common {
     /// True iff ensureInit() succeeded at least once.
     bool isReady();
 
-}  // namespace ungula::bsp::waveshare::common
+} // namespace ungula::bsp::waveshare::common
