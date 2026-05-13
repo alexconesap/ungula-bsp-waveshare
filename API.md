@@ -100,7 +100,7 @@ called internally by `init()` as a boot-sanity pulse.
 
 ```cpp
 #include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
-#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/time.h>
 
 void resequenceTouchPanel() {
     ungula::bsp::waveshare::lcd7::touchReset(true);
