@@ -31,7 +31,7 @@
 namespace ungula::bsp::waveshare::lcd7
 {
 
-    struct Config {
+struct Config {
         /// Route SD chip-select through the expander pin. Set when the
         /// firmware uses the onboard microSD slot.
         bool enableSdCs = false;
@@ -49,50 +49,50 @@ namespace ungula::bsp::waveshare::lcd7
         /// performed regardless, so the operator sees life on boot
         /// even if the UI takes seconds to come up.
         uint8_t initialBacklight = 0;
-    };
+};
 
-    /// Bring up the expander with exactly the pins requested in `cfg`.
-    /// Idempotent — safe to call more than once. Returns false if the
-    /// expander failed to respond on I2C (missing board? wrong SDA/SCL?).
-    bool init(const Config &cfg);
+/// Bring up the expander with exactly the pins requested in `cfg`.
+/// Idempotent — safe to call more than once. Returns false if the
+/// expander failed to respond on I2C (missing board? wrong SDA/SCL?).
+bool init(const Config &cfg);
 
-    // ---- Purpose-named pin control ----
-    //
-    // Every helper is safe to call before init(): it's a no-op in that
-    // case. That lets hosts sequence calls however they like without
-    // guarding each one.
+// ---- Purpose-named pin control ----
+//
+// Every helper is safe to call before init(): it's a no-op in that
+// case. That lets hosts sequence calls however they like without
+// guarding each one.
 
-    /// Turn the LCD backlight on or off. 0 = off, 1 = on.
-    void setBacklight(uint8_t level);
+/// Turn the LCD backlight on or off. 0 = off, 1 = on.
+void setBacklight(uint8_t level);
 
-    /// Quick blink pulse (off → on). Called internally at init() as a
-    /// boot-sanity signal — exposed here for apps that want to re-blink
-    /// after flashing firmware or as an error indicator.
-    void backlightBlink();
+/// Quick blink pulse (off → on). Called internally at init() as a
+/// boot-sanity signal — exposed here for apps that want to re-blink
+/// after flashing firmware or as an error indicator.
+void backlightBlink();
 
-    /// Assert / release the SD chip-select line (through the expander).
-    /// `asserted=true` drives the line LOW (CS active on SPI slaves).
-    /// Call `sdCs(true)` once before mounting the SPI SD filesystem —
-    /// the shared SPI bus will then toggle the line for each transfer.
-    void sdCs(bool asserted);
+/// Assert / release the SD chip-select line (through the expander).
+/// `asserted=true` drives the line LOW (CS active on SPI slaves).
+/// Call `sdCs(true)` once before mounting the SPI SD filesystem —
+/// the shared SPI bus will then toggle the line for each transfer.
+void sdCs(bool asserted);
 
-    /// LCD reset pulse control. `asserted=true` drives RST low (reset
-    /// held). Typical sequence: assert → wait 10 ms → release.
-    void lcdReset(bool asserted);
+/// LCD reset pulse control. `asserted=true` drives RST low (reset
+/// held). Typical sequence: assert → wait 10 ms → release.
+void lcdReset(bool asserted);
 
-    /// Touch controller reset pulse control. Same semantics as
-    /// lcdReset() but for the GT911 pin on the expander.
-    void touchReset(bool asserted);
+/// Touch controller reset pulse control. Same semantics as
+/// lcdReset() but for the GT911 pin on the expander.
+void touchReset(bool asserted);
 
-    // ---- Pin map ----
-    //
-    // Every value here is a hardware fact of the Waveshare
-    // ESP32-S3-Touch-LCD-7 PCB. The `pins::` namespace lets host code
-    // wire up peripherals (SPI bus, I2C bus, fan PWM, whatever) against
-    // the board without guessing GPIO numbers.
+// ---- Pin map ----
+//
+// Every value here is a hardware fact of the Waveshare
+// ESP32-S3-Touch-LCD-7 PCB. The `pins::` namespace lets host code
+// wire up peripherals (SPI bus, I2C bus, fan PWM, whatever) against
+// the board without guessing GPIO numbers.
 
-    namespace pins
-    {
+namespace pins
+{
 
         // I2C bus shared with the GT911 touch controller (separate I2C
         // port for the controller — this is the expander bus).
@@ -106,24 +106,24 @@ namespace ungula::bsp::waveshare::lcd7
         constexpr int8_t SD_SPI_SCK = 12;
         constexpr int8_t SD_SPI_MISO = 13;
 
-    } // namespace pins
+} // namespace pins
 
-    // ---- CH422G expander pin assignments (internal use by board.cpp) ----
-    //
-    // Exposed because an advanced consumer might want to bit-bang a pin
-    // the board module doesn't wrap. Keep this list minimal — new
-    // use-cases should get a proper purpose-named helper above.
-    namespace expander_pins
-    {
+// ---- CH422G expander pin assignments (internal use by board.cpp) ----
+//
+// Exposed because an advanced consumer might want to bit-bang a pin
+// the board module doesn't wrap. Keep this list minimal — new
+// use-cases should get a proper purpose-named helper above.
+namespace expander_pins
+{
         constexpr uint8_t TP_RST = 1; // GT911 touch reset
         constexpr uint8_t LCD_BL = 2; // LCD backlight (LOW = off)
         constexpr uint8_t LCD_RST = 3; // LCD reset
         constexpr uint8_t SD_CS = 4; // SD card chip-select
         constexpr uint8_t USB_SEL = 5; // USB host/device select
-    } // namespace expander_pins
+} // namespace expander_pins
 
-    namespace detail
-    {
+namespace detail
+{
 
         /// Map a Config to the bitmask of expander pins that need to be
         /// registered as outputs. Pure function — exposed for host tests
@@ -131,20 +131,20 @@ namespace ungula::bsp::waveshare::lcd7
         /// without an expander on the wire.
         constexpr uint8_t outputPinsMaskFor(const Config &cfg)
         {
-            uint8_t mask = 0;
-            if (cfg.enableLcd) {
-                mask |= static_cast<uint8_t>(1U << expander_pins::LCD_BL);
-                mask |= static_cast<uint8_t>(1U << expander_pins::LCD_RST);
-            }
-            if (cfg.enableTouch) {
-                mask |= static_cast<uint8_t>(1U << expander_pins::TP_RST);
-            }
-            if (cfg.enableSdCs) {
-                mask |= static_cast<uint8_t>(1U << expander_pins::SD_CS);
-            }
-            return mask;
+                uint8_t mask = 0;
+                if (cfg.enableLcd) {
+                        mask |= static_cast<uint8_t>(1U << expander_pins::LCD_BL);
+                        mask |= static_cast<uint8_t>(1U << expander_pins::LCD_RST);
+                }
+                if (cfg.enableTouch) {
+                        mask |= static_cast<uint8_t>(1U << expander_pins::TP_RST);
+                }
+                if (cfg.enableSdCs) {
+                        mask |= static_cast<uint8_t>(1U << expander_pins::SD_CS);
+                }
+                return mask;
         }
 
-    } // namespace detail
+} // namespace detail
 
 } // namespace ungula::bsp::waveshare::lcd7
