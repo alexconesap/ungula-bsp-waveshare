@@ -2,9 +2,29 @@
 
 > **Board support package** for Waveshare ESP32-S3 touch-LCD development boards — one brand, one library, one entry point per model.
 
+> **LLM usage note:** if this library is consumed from a coding AI workflow, explicitly point the agent to `API.md` first. `API.md` is the LLM-facing contract (public API + examples + constraints) and avoids wasting time/tokens scanning source files and this human-oriented README.
+
 Waveshare ships a family of ESP32-S3 boards that share the same playbook: a CH422G I²C I/O expander fans out the "plumbing" pins (LCD reset, LCD backlight, touch reset, SD chip-select, USB select, audio mute) so the ESP32-S3's own GPIOs are free for RGB panel data and the SPI/UART headers. Every project that uses one of these boards ends up writing the same glue: wake the expander on I²C, register the right output pins, pulse LCD reset, turn the backlight on at the right moment, drive the SD CS line through the expander while the SPI bus does the real work.
 
 This library **is that glue**. One shared CH422G owner, one purpose-named helper per board function (`setBacklight`, `sdCs`, `lcdReset`, `touchReset`), one idempotent `init()` per board model. Host projects stop reinventing the expander dance and stop accidentally double-initialising the chip from two subsystems at once.
+
+## Table of Contents
+
+- [What problem it solves](#what-problem-it-solves)
+- [Supported boards](#supported-boards)
+- [Quick start — ESP32-S3-Touch-LCD-7](#quick-start-esp32-s3-touch-lcd-7)
+  - [Real-world: display + SD both coming up at boot](#real-world-display-sd-both-coming-up-at-boot)
+- [API reference](#api-reference)
+  - [Per-board module (`ungula::bsp::waveshare::lcd7`, `ungula::bsp::waveshare::lcd43`)](#per-board-module-ungulabspwavesharelcd7-ungulabspwavesharelcd43)
+  - [`Config` struct](#config-struct)
+  - [Shared CH422G owner (`ungula::bsp::waveshare::common`)](#shared-ch422g-owner-ungulabspwavesharecommon)
+- [Structure](#structure)
+- [Dependencies](#dependencies)
+- [Testing](#testing)
+- [Adding a new Waveshare board](#adding-a-new-waveshare-board)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+- [Arduino CLI symlink note (rarely relevant)](#arduino-cli-symlink-note-rarely-relevant)
 
 ## What problem it solves
 
@@ -88,7 +108,7 @@ namespace board = ungula::bsp::waveshare::lcd7;
 
 // Project-level knobs that aren't board facts — keep them named so
 // someone reading setup() doesn't have to guess what a literal means.
-constexpr uint32_t SD_SPI_FREQ_HZ     = 10'000'000;
+constexpr uint32_t SD_SPI_FREQ_HZ     = 10000000;
 constexpr uint8_t  SD_SPI_MODE        = 0;
 constexpr int8_t   SD_SPI_CS_UNUSED   = -1;  // CS is on the expander, not the bus.
 constexpr uint8_t  INITIAL_BACKLIGHT  = ungula::bsp::waveshare::common::LEVEL_HIGH;

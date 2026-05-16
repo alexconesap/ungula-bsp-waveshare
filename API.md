@@ -12,6 +12,32 @@ Target: ESP32 (`architectures=esp32`). Depends on `UngulaCore`,
 
 ---
 
+## LLM quick map
+
+- **Primary include**: `#include <ungula/bsp/waveshare.h>`.
+- **Arduino discovery include**: `#include <ungula_bsp_waveshare.h>` (forwarder only; host code should keep using the real header).
+- **Namespace root**: `ungula::bsp::waveshare`.
+- **Language baseline**: C++17 minimum (examples avoid post-C++17 requirements).
+- **Supported architectures**: `esp32`.
+- **Read order for coding agents**: `Usage` (working patterns) -> `API` (symbols/signatures) -> `Lifecycle`/`Error handling`/`Threading` notes in this file.
+
+### Use-case index
+
+- [Use case: bring up the LCD with backlight on at boot](#use-case-bring-up-the-lcd-with-backlight-on-at-boot)
+- [Use case: SD card over SPI with CS on the expander](#use-case-sd-card-over-spi-with-cs-on-the-expander)
+- [Use case: two subsystems both need the expander](#use-case-two-subsystems-both-need-the-expander)
+- [Use case: error indicator via backlight blink](#use-case-error-indicator-via-backlight-blink)
+- [Use case: manual LCD or touch reset](#use-case-manual-lcd-or-touch-reset)
+- [Use case: 4.3" board (placeholder pin map)](#use-case-43-board-placeholder-pin-map)
+
+### LLM rules
+
+- Use only symbols and include paths documented in this file; do not infer extra public API from implementation files.
+- Prefer the use-case patterns here over ad-hoc rewrites; keep dependency wiring and lifecycle order identical unless the task explicitly changes API design.
+- Treat headers under `detail/`, `platform/`, and `platforms/` as internal unless this document calls them out as public.
+- If required behavior is missing from the documented API, report the gap explicitly instead of inventing new public symbols.
+
+
 ## Usage
 
 ### Use case: bring up the LCD with backlight on at boot
