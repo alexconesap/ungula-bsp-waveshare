@@ -4,12 +4,15 @@
 
 > **LLM usage note:** if this library is consumed from a coding AI workflow, explicitly point the agent to `API.md` first. `API.md` is the LLM-facing contract (public API + examples + constraints) and avoids wasting time/tokens scanning source files and this human-oriented README.
 
+> **Warning - Active Development:** This library is under active architecture work to support multiple projects in parallel. Its structure is not finalized yet and may change without notice while this work is in progress. Updates are currently frequent (often daily). Target for structural freeze and stable `v1.0.0`: **June 2026**.
+
 Waveshare ships a family of ESP32-S3 boards that share the same playbook: a CH422G I²C I/O expander fans out the "plumbing" pins (LCD reset, LCD backlight, touch reset, SD chip-select, USB select, audio mute) so the ESP32-S3's own GPIOs are free for RGB panel data and the SPI/UART headers. Every project that uses one of these boards ends up writing the same glue: wake the expander on I²C, register the right output pins, pulse LCD reset, turn the backlight on at the right moment, drive the SD CS line through the expander while the SPI bus does the real work.
 
 This library **is that glue**. One shared CH422G owner, one purpose-named helper per board function (`setBacklight`, `sdCs`, `lcdReset`, `touchReset`), one idempotent `init()` per board model. Host projects stop reinventing the expander dance and stop accidentally double-initialising the chip from two subsystems at once.
 
 ## Table of Contents
 
+- [C++ Compatibility](#c-compatibility)
 - [What problem it solves](#what-problem-it-solves)
 - [Supported boards](#supported-boards)
 - [Quick start — ESP32-S3-Touch-LCD-7](#quick-start-esp32-s3-touch-lcd-7)
@@ -25,6 +28,12 @@ This library **is that glue**. One shared CH422G owner, one purpose-named helper
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
 - [Arduino CLI symlink note (rarely relevant)](#arduino-cli-symlink-note-rarely-relevant)
+
+## C++ Compatibility
+
+- **Own source minimum**: `C++17`.
+- **Effective minimum for consumers**: `C++17`.
+- **Dependency impact**: Declared internal dependencies `UngulaCore` and `UngulaHal` are `C++17`.
 
 ## What problem it solves
 

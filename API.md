@@ -17,7 +17,9 @@ Target: ESP32 (`architectures=esp32`). Depends on `UngulaCore`,
 - **Primary include**: `#include <ungula/bsp/waveshare.h>`.
 - **Arduino discovery include**: `#include <ungula_bsp_waveshare.h>` (forwarder only; host code should keep using the real header).
 - **Namespace root**: `ungula::bsp::waveshare`.
-- **Language baseline**: C++17 minimum (examples avoid post-C++17 requirements).
+- **Own source minimum**: `C++17`.
+- **Effective minimum for consumers**: `C++17`.
+- **Dependency impact**: Declared internal dependencies `UngulaCore` and `UngulaHal` are `C++17`.
 - **Supported architectures**: `esp32`.
 - **Read order for coding agents**: `Usage` (working patterns) -> `API` (symbols/signatures) -> `Lifecycle`/`Error handling`/`Threading` notes in this file.
 
