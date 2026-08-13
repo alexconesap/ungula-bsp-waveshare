@@ -52,15 +52,28 @@ void setup() {
         .enableSdCs       = false,
         .enableLcd        = true,
         .enableTouch      = false,
-        .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
+        .initialBacklight = 1,   // plain 0/1 — board.h does not pull in common::LEVEL_*
     });
 }
 
 void loop() {}
 ```
 
-When to use this: any project that drives the RGB panel and wants the
-expander, LCD reset pulse, and backlight all handled in one call.
+When to use this: any project that drives the RGB panel and wants the expander
+brought up and the backlight registered in one call.
+
+Two things this call does NOT do, despite what you might expect from a BSP:
+
+- It does **not** pulse LCD reset. It only releases it (`lcdReset(false)`). If
+  the panel needs a real reset, drive it yourself: `lcdReset(true)` → wait 10 ms
+  → `lcdReset(false)`.
+- `initialBacklight` does not survive. `init()` applies it and then immediately
+  runs `backlightBlink()`, which ends with the backlight **on**. Passing
+  `initialBacklight = 0` still leaves the panel lit. Call `setBacklight(0)`
+  after `init()` if you need it dark.
+
+`init()` also blocks for ~200 ms inside `backlightBlink()` (two 100 ms waits).
+Budget for that in boot timing.
 
 ### Use case: SD card over SPI with CS on the expander
 
@@ -91,7 +104,7 @@ void bootUi() {
     ungula::bsp::waveshare::lcd7::init({
         .enableLcd        = true,
         .enableTouch      = true,
-        .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
+        .initialBacklight = 1,
     });
 }
 
@@ -137,8 +150,9 @@ void resequenceTouchPanel() {
 }
 ```
 
-When to use this: re-init a peripheral without rebooting the board. `init()`
-already performs the LCD reset pulse once.
+When to use this: re-init a peripheral without rebooting the board — and also at
+boot, because `init()` only releases the reset lines, it never asserts them. The
+same shape applies to `lcdReset`.
 
 ### Use case: 4.3" board (placeholder pin map)
 
@@ -225,15 +239,23 @@ struct Config {
 
 Field meaning:
 
-- `enableSdCs` — register `SD_CS` as expander output.
-- `enableLcd` — register `LCD_RST` + `LCD_BL` as outputs, pulse LCD reset,
-  apply `initialBacklight`.
-- `enableTouch` — register `TP_RST` as expander output.
-- `initialBacklight` — `0` or `1`. Applied only when `enableLcd` is true.
-  A `backlightBlink()` is performed regardless (visible boot signal).
+- `enableSdCs` — register `SD_CS` as expander output, then deassert it (HIGH).
+- `enableLcd` — register `LCD_RST` + `LCD_BL` as outputs, apply
+  `initialBacklight`, run `backlightBlink()`, then release LCD reset (HIGH).
+- `enableTouch` — register `TP_RST` as expander output, then release it (HIGH).
+- `initialBacklight` — `0` or `1`, only read when `enableLcd` is true. Any
+  non-zero value means "on". **It does not stick**: the `backlightBlink()` that
+  follows ends with the backlight on, so the pin is HIGH after `init()`
+  regardless. Call `setBacklight(0)` afterwards if you want it off.
 
 Flags are independent: any combination is valid. Subsequent `init()` calls
 OR their masks into the existing expander config.
+
+Ordering note: with `enableLcd`, the backlight is driven **before** LCD reset is
+released, so the panel is lit for ~200 ms while the controller is still held in
+reset. Expect visible noise on the panel at boot. Pass `initialBacklight = 0`
+and raise the backlight yourself after the display stack is drawing if that
+matters.
 
 ### `ungula::bsp::waveshare::common::PinMode`
 
@@ -241,8 +263,10 @@ OR their masks into the existing expander config.
 enum class PinMode : uint8_t { Output = 0, Input = 1 };
 ```
 
-Direction value for the shared expander layer. Board modules currently
-register only outputs.
+Declared in `ch422g_expander.h` but **not referenced by any function in this
+library** — no public entry point takes a `PinMode`. `ensureInit()` registers
+outputs via a bitmask instead. Do not build host code around it; it is a
+placeholder for a direction API that does not exist yet.
 
 ### `ungula::bsp::waveshare::common` constants
 
@@ -263,39 +287,54 @@ pulling Arduino macros into headers.
 #### `bool init(const Config& cfg)`
 
 - **Purpose**: bring the CH422G up on the board's I2C pins, register the
-  output pins implied by `cfg`, pulse LCD reset (when `enableLcd`), apply
-  `initialBacklight` (when `enableLcd`), perform a `backlightBlink()`.
+  output pins implied by `cfg`, apply `initialBacklight` and blink (when
+  `enableLcd`), then release the reset / chip-select lines for the enabled
+  subsystems.
 - **Parameters**: `cfg` — see `Config` above.
-- **Returns**: `true` on success. `false` only if the CH422G did not ACK
-  on I2C (missing board, wrong SDA/SCL).
-- **Side effects**: I2C transactions to address `0x24`; expander output
-  pin state changes; ~10 ms LCD reset pulse via `ungula::core::time`.
-- **Idempotent**: yes. Subsequent calls only OR new pins into the mask
-  and may re-apply `initialBacklight`.
+- **Returns**: `true` on success. **On an ESP32 target it currently returns
+  `true` unconditionally** — the underlying `ensureInit()` ignores the CH422G
+  driver's own return codes, so a missing board or wrong SDA/SCL still reads as
+  success and every later pin write is silently dropped. Do not use the return
+  value as proof the panel is alive; probe the I2C bus yourself if that matters.
+  The off-target (host build) stub returns `false`.
+- **Side effects**: I2C transactions to the CH422G; expander output pin state
+  changes; ~200 ms of blocking wait via `ungula::core::time::delay` when
+  `enableLcd` is set (the `backlightBlink()` pair of 100 ms halves).
+- **Idempotent**: the expander wake-up is. The *side effects* are not — each
+  call with `enableLcd` re-applies the backlight and blinks again, blocking
+  another 200 ms. A second subsystem calling `init({.enableSdCs = true})` is
+  cheap; a second call with `enableLcd` is not.
 - **Usage notes**: must run after Arduino `setup()` is reached but before
-  any subsystem reads/writes through the expander.
+  any subsystem reads/writes through the expander. It allocates the driver with
+  `new` on first call — boot only, per project policy.
+- **Not reset-sequencing**: it never asserts `LCD_RST` or `TP_RST`, only
+  releases them. Drive a real pulse yourself if the panel needs one.
 
 #### `void setBacklight(uint8_t level)`
 
-- 0 = off, 1 = on. No-op if `init()` has not succeeded.
+- `0` = off, any non-zero = on. No-op if `init()` has not run.
 
 #### `void backlightBlink()`
 
-- Quick off/on pulse on `LCD_BL`. No-op if `init()` has not succeeded.
+- Off → 100 ms → on → 100 ms. **Blocks for ~200 ms** and leaves the backlight
+  **on**. No-op if `init()` has not run. Do not call it from a latency-sensitive
+  path or a fault handler that must return quickly.
 
 #### `void sdCs(bool asserted)`
 
 - `true` drives SD CS LOW (slave selected on SPI). No-op if `init()` has
-  not succeeded. Call once before mounting the SPI SD filesystem.
+  not run. Call once before mounting the SPI SD filesystem.
 
 #### `void lcdReset(bool asserted)`
 
-- `true` holds LCD reset asserted. Typical sequence: `lcdReset(true)` →
-  10 ms wait → `lcdReset(false)`. `init()` already does this once.
+- `true` holds LCD reset asserted (LOW), `false` releases it (HIGH). Typical
+  sequence: `lcdReset(true)` → 10 ms wait → `lcdReset(false)`. `init()` only
+  performs the release half — if you need the pulse, write all three steps.
 
 #### `void touchReset(bool asserted)`
 
-- Same shape as `lcdReset`, for the GT911 touch controller.
+- Same shape as `lcdReset`, for the GT911 touch controller. Same caveat: `init()`
+  only releases it.
 
 ### Shared expander (`ungula::bsp::waveshare::common`)
 
@@ -305,17 +344,33 @@ when no purpose-named board helper exists for the pin (e.g. `USB_SEL`).
 #### `bool ensureInit(int8_t sdaPin, int8_t sclPin, uint8_t outputPinsMask)`
 
 - Wakes the CH422G on the given I2C pins. OR-s `outputPinsMask` into the
-  current output configuration.
-- **Returns**: `true` on success, `false` if the chip did not respond.
-- Idempotent — repeated calls are silent no-ops aside from the mask OR.
+  current output configuration and calls `multiPinMode(newPins, OUTPUT)` for the
+  bits that were not already registered.
+- Argument order is `(sda, scl)`. The underlying `esp_expander::CH422G`
+  constructor takes `(scl, sda)`; this wrapper swaps them for you. Do not
+  "fix" the order.
+- **Returns**: on ESP32, always `true` — the driver's `init()`, `begin()` and
+  `multiPinMode()` return values are all discarded. On a host build the stub
+  always returns `false`. There is currently no way to detect a missing chip
+  through this API.
+- `outputPinsMask` is a `uint8_t`, so only CH422G pins 0-7 are addressable
+  through it. Pins above 7 cannot be registered as outputs.
+- Idempotent for the wake-up; the mask OR is cumulative and never cleared.
+- Not thread-safe: two tasks racing the first call can both allocate a driver.
+  Call it during boot from one context.
 
 #### `void writePin(uint8_t pinNumber, uint8_t level)`
 
-- Drive a CH422G pin. No-op if `ensureInit()` has not succeeded.
+- Drive a CH422G pin. Silent no-op if `ensureInit()` has never run. The
+  driver's `digitalWrite()` return value is discarded, so an I2C failure here is
+  invisible. `pinNumber` is not range-checked and the pin does not have to be
+  registered as an output first.
 
 #### `bool isReady()`
 
-- True iff `ensureInit()` succeeded at least once.
+- Strictly: true once the driver object has been allocated, i.e. after any
+  `ensureInit()` call on an ESP32 target. It does **not** confirm the chip
+  answered on I2C. Always `false` on host builds.
 
 ### `detail::outputPinsMaskFor(const Config&)` (per board)
 
@@ -328,31 +383,40 @@ Public for host tests (see `tests/test_lcd7_pin_mask.cpp`,
 ## Lifecycle
 
 1. Power on, Arduino `setup()` reached.
-2. One or more subsystems call `bsp::ws::<model>::init(cfg)` with the
-   pins they need. Order does not matter; flags are merged.
-3. First successful `init()` brings up the CH422G, registers requested
-   outputs, pulses LCD reset, applies `initialBacklight`, blinks backlight.
-4. Operate: call `setBacklight` / `sdCs` / `lcdReset` / `touchReset` as
-   needed. All are no-ops before a successful `init()`.
-5. There is no shutdown / teardown call. The expander stays initialized
-   for the lifetime of the boot.
+2. One or more subsystems call `ungula::bsp::waveshare::<model>::init(cfg)` with
+   the pins they need. Order does not matter; masks are merged.
+3. The first call allocates the CH422G driver and registers the requested
+   outputs. With `enableLcd` it also applies `initialBacklight`, blinks
+   (~200 ms), and releases LCD reset.
+4. If the panel needs a real reset pulse, do it here: `lcdReset(true)` → 10 ms →
+   `lcdReset(false)`. `init()` does not.
+5. Operate: call `setBacklight` / `sdCs` / `lcdReset` / `touchReset` as
+   needed. All are no-ops before the first `init()`.
+6. There is no shutdown / teardown call. The expander stays initialized
+   for the lifetime of the boot, and the driver allocation is never freed.
 
 Violation behavior:
 
-- Calling helpers before `init()` succeeds → silent no-op.
-- Calling `init()` with the wrong SDA/SCL or no board attached → returns
-  `false`; subsequent helpers remain no-ops until a later `init()` call
-  succeeds.
+- Calling helpers before `init()` → silent no-op, no error.
+- Calling `init()` with the wrong SDA/SCL or no board attached → still returns
+  `true` on target (see `ensureInit`). Every subsequent pin write is dropped
+  inside the driver with no signal to the caller. This is the failure mode to
+  watch for: the firmware boots "successfully" and the panel stays dark.
 
 ---
 
 ## Error handling
 
-- `init()` and `ensureInit()` return `bool`. `false` means I2C ACK failure.
-  No exceptions are thrown; errno is not used.
-- All pin-write helpers are silent no-ops when the expander is not ready.
-  No error code is returned. Use `ungula::bsp::waveshare::common::isReady()` to
-  query state explicitly.
+- `init()` and `ensureInit()` return `bool`, but the `bool` is not currently
+  meaningful on target: it is hardwired to `true` because the CH422G driver's
+  return codes are discarded. Treat a `true` as "the call ran", not "the chip is
+  there". No exceptions are thrown; errno is not used.
+- All pin-write helpers are silent no-ops when the expander was never
+  initialized, and silent failures when I2C errors out. No error code is
+  returned either way. `ungula::bsp::waveshare::common::isReady()` only tells
+  you the driver object exists.
+- Practical consequence: this library gives the host no way to detect a dead
+  panel or a wiring fault. If the project needs that, probe the bus directly.
 - No logging is performed inside the library (per project rule —
   logging is the host's responsibility).
 
@@ -360,16 +424,21 @@ Violation behavior:
 
 ## Threading / timing / hardware notes
 
-- I2C address: CH422G at `0x24` (declared internally; not exposed).
-- LCD reset pulse: ~10 ms, sourced from `ungula::core::time` rather than
-  Arduino `delay()`.
+- I2C address: taken from `ESP_IO_EXPANDER_I2C_CH422G_ADDRESS` in the
+  `ESP32_IO_Expander` library, not declared here. The BSP never hard-codes it.
+- Blocking: `backlightBlink()` waits 2 × 100 ms via `ungula::core::time::delay`
+  (not Arduino `delay()`). `init({.enableLcd = true})` therefore blocks ~200 ms.
+  Nothing else in the library waits.
 - Not interrupt-safe: do not call any function from an ISR. The CH422G
   driver issues blocking I2C transactions.
-- Not thread-safe: no internal mutex. Host code must serialize calls if
-  multiple FreeRTOS tasks invoke board helpers concurrently.
-- Heap: the CH422G driver instance is allocated once on first
-  `ensureInit()`. Per project rule, treat `init()` as a `setup()`-time
-  call only — do not invoke for the first time after `setup()` returns.
+- Not thread-safe: no internal mutex, and the shared expander state
+  (driver pointer + accumulated output mask) is plain globals. Two tasks racing
+  the first `ensureInit()` can both allocate a driver and leak one. Serialize at
+  the host, or just call `init()` from one boot context.
+- Heap: the CH422G driver instance is allocated with `new` on first
+  `ensureInit()` and never freed. Per project rule, treat `init()` as a
+  `setup()`-time call only — do not invoke for the first time after `setup()`
+  returns.
 
 ---
 
@@ -383,9 +452,11 @@ Violation behavior:
 - `ch422g_expander.cpp` internals (driver pointer, init flag) — not
   exposed; do not include or extern.
 - `board.cpp` translation units — implementation detail.
-- The umbrella header `<ungula/bsp/waveshare.h>` exists only to make
-  Arduino CLI discover the library. It does not pull in any board
-  module — application code must include the specific board header.
+- The umbrella header `<ungula/bsp/waveshare.h>` exists to make Arduino CLI
+  discover the library. It pulls in `common/ch422g_expander.h` only — no board
+  module. Application code must include the specific board header it targets.
+  Including the umbrella is also the way to get `common::LEVEL_LOW` /
+  `LEVEL_HIGH`, which the board headers do not provide.
 
 ---
 
@@ -393,10 +464,20 @@ Violation behavior:
 
 The library is mostly deep, but a few sharp edges stand out:
 
-1. **Distinct return type for `init()` failure modes.** Currently `bool`
-   collapses "chip absent", "wrong pins", and "first call already
-   succeeded" into the same value. Proposed: an `InitResult` enum
-   (`Ok`, `AlreadyInitialized`, `I2cNack`, `ConfigConflict`).
+1. **Propagate the CH422G driver's return codes.** `ensureInit()` discards the
+   results of `init()`, `begin()` and `multiPinMode()`, and `writePin()`
+   discards `digitalWrite()`'s, so the whole layer reports success
+   unconditionally on target. This is the most user-visible gap: a dead or
+   unwired expander is indistinguishable from a healthy one. Fixing it should
+   come before the cosmetic items below, and pairs naturally with an
+   `InitResult` enum (`Ok`, `AlreadyInitialized`, `I2cNack`, `ConfigConflict`)
+   in place of `bool`.
+2. **Real LCD/touch reset pulse in `init()`.** Today it only releases the reset
+   lines. Every host ends up writing the assert → wait → release itself, which
+   is exactly the glue the BSP exists to absorb.
+3. **`initialBacklight` should stick.** `init()` applies it and then blinks,
+   and the blink ends "on", so the requested level is always discarded. Either
+   re-apply the level after the blink or make the blink opt-in via `Config`.
 2. **`USB_SEL` purpose-named helper.** `expander_pins::USB_SEL` is the
    only board-level pin without a wrapper, forcing host code into the
    `common::writePin` back-door. Proposed: `void usbSelect(bool host)`
@@ -425,10 +506,16 @@ Treat every item above as a proposal, not as existing API.
   `lcdReset`, `touchReset`) over `common::writePin`.
 - Never instantiate `esp_expander::CH422G` from host code — the BSP
   owns the chip. Two owners produces undefined behavior.
-- Pin numbers come from `bsp::ws::<model>::pins::*`. Do not hard-code
-  GPIOs.
+- Pin numbers come from `ungula::bsp::waveshare::<model>::pins::*`. Do not
+  hard-code GPIOs. (`bsp::ws::` in older snippets is an obsolete spelling.)
 - `init()` is the only entry point that must run before other helpers
   do anything. Helpers are no-ops, not errors, before then.
+- Do not treat `init()`'s `true` as a health check, and do not write host code
+  that branches on it expecting a hardware failure path — it never returns
+  `false` on target today.
+- `common::LEVEL_LOW` / `LEVEL_HIGH` live in `ch422g_expander.h`, which the
+  board headers do NOT include. In host code that only includes a board header,
+  write plain `0` / `1` for `initialBacklight` and `setBacklight`.
 - `delay()` / `millis()` / `digitalWrite()` are not used by this
   library; do not introduce them when extending it (use
   `ungula::core::time` and the shared expander instead).

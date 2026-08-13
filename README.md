@@ -88,13 +88,24 @@ With the BSP, both sites just say what they need:
 #include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 ungula::bsp::waveshare::lcd7::init({
-    .enableLcd        = true,
     .enableSdCs       = true,
-    .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
+    .enableLcd        = true,
+    .initialBacklight = 1,
 });
 ```
 
-The first call brings the expander up, registers the requested pins as outputs, pulses the LCD reset, and turns the backlight on. Subsequent calls from other subsystems OR their pins into the existing config without touching what's already set up.
+(Field order follows the struct: `enableSdCs`, `enableLcd`, `enableTouch`,
+`initialBacklight`. C++20 designated initialisers must be in declaration order.)
+
+The first call brings the expander up, registers the requested pins as outputs, turns the backlight on, and releases the LCD reset line. Subsequent calls from other subsystems OR their pins into the existing config without touching what's already set up.
+
+Two limits worth knowing before you rely on it:
+
+- `init()` **does not pulse** LCD reset — it only releases it. If your panel
+  needs a real reset, do `lcdReset(true)` → 10 ms → `lcdReset(false)` yourself.
+- `init()` currently **always reports success** on an ESP32 target. The CH422G
+  driver's return codes are discarded, so a missing board or wrong SDA/SCL still
+  returns `true` and every later pin write is silently dropped.
 
 ## Supported boards
 
@@ -120,15 +131,15 @@ namespace board = ungula::bsp::waveshare::lcd7;
 constexpr uint32_t SD_SPI_FREQ_HZ     = 10000000;
 constexpr uint8_t  SD_SPI_MODE        = 0;
 constexpr int8_t   SD_SPI_CS_UNUSED   = -1;  // CS is on the expander, not the bus.
-constexpr uint8_t  INITIAL_BACKLIGHT  = ungula::bsp::waveshare::common::LEVEL_HIGH;
+constexpr uint8_t  INITIAL_BACKLIGHT  = 1;   // 0 = off, 1 = on
 
 ungula::hal::spi::SpiMaster sdSpi;
 
 void setup() {
-    // One call covers: expander wake-up on I2C, LCD reset pulse,
-    // backlight output registration, SD CS output registration,
-    // initial backlight level. Idempotent — other subsystems can
-    // call this too without side effects.
+    // One call covers: expander wake-up on I2C, backlight + SD CS output
+    // registration, initial backlight level, and releasing the LCD reset
+    // line. Blocks ~200 ms for the boot blink. Safe to call from other
+    // subsystems too — they just OR their pins in.
     board::init({
         .enableSdCs       = true,
         .enableLcd        = true,
@@ -167,9 +178,11 @@ void bootUi() {
     ungula::bsp::waveshare::lcd7::init({
         .enableLcd        = true,
         .enableTouch      = true,
-        .initialBacklight = ungula::bsp::waveshare::common::LEVEL_HIGH,
+        .initialBacklight = 1,
     });
-    // LCD is now reset, backlight is on, touch reset pin is an output.
+    // Backlight is on, LCD and touch reset lines are released, both pins
+    // are registered as outputs. No reset pulse was issued — add one here
+    // if the panel needs it.
     startDisplayStack();
 }
 ```
@@ -195,47 +208,84 @@ Boot-order sensitivity: call order between `bootUi()` and `bootSdSink()` does no
 
 | Function | Description |
 | --- | --- |
-| `init(Config)` | Bring the expander up with exactly the pins the caller needs. Idempotent. Returns false only if the chip didn't ACK on I²C (missing board? wrong SDA/SCL?). |
-| `setBacklight(level)` | 0 = off, 1 = on. No-op before `init()`. |
-| `backlightBlink()` | Quick off/on pulse — boot-sanity signal and runtime error indicator. |
+| `init(Config)` | Bring the expander up with exactly the pins the caller needs. Wake-up is idempotent; the backlight/blink side effects are not. Returns `true` unconditionally on target — see the caveat above. |
+| `setBacklight(level)` | 0 = off, non-zero = on. No-op before `init()`. |
+| `backlightBlink()` | Off → 100 ms → on → 100 ms. **Blocks ~200 ms** and leaves the backlight on. |
 | `sdCs(asserted)` | `true` drives CS low (SPI slave selected). Call once before mounting; the SPI bus toggles it afterwards. |
-| `lcdReset(asserted)` | LCD reset pulse control — typical sequence: assert → 10 ms → release. `init()` already does this once. |
-| `touchReset(asserted)` | Same as `lcdReset()` but for the GT911 touch controller. |
+| `lcdReset(asserted)` | `true` = hold reset (LOW), `false` = release (HIGH). Full pulse is assert → 10 ms → release; `init()` only does the release half. |
+| `touchReset(asserted)` | Same as `lcdReset()` but for the GT911 touch controller. Same caveat. |
 | `pins::*` | Compile-time constants for GPIO-visible pins (I²C bus, SD SPI bus). |
 | `expander_pins::*` | CH422G pin assignments — exposed for advanced consumers who want to bit-bang an expander pin the board module doesn't wrap. Prefer the purpose-named helpers above. |
 
 ### `Config` struct
 
+Declared in each board header (not in the umbrella):
+
 ```cpp
-#include <ungula/bsp/waveshare.h>
+#include <ungula/bsp/waveshare/boards/esp32s3_touch_lcd_7/board.h>
 
 struct Config {
     bool enableSdCs       = false;  // register SD CS as expander output
-    bool enableLcd        = false;  // register LCD reset + backlight, pulse reset
+    bool enableLcd        = false;  // register LCD reset + backlight, release reset
     bool enableTouch      = false;  // register GT911 reset as expander output
-    uint8_t initialBacklight = ungula::bsp::waveshare::common::LEVEL_LOW;  // applied only if enableLcd
+    uint8_t initialBacklight = 0;   // 0/1, read only when enableLcd
 };
 ```
 
 The flags are independent on purpose: a project might want the LCD lit for a boot splash without bringing the touch stack up, or might want SD without ever enabling the display.
 
+`initialBacklight` does not survive `init()`: the boot blink that follows ends
+with the backlight on, so the pin is HIGH afterwards whatever you passed. Call
+`setBacklight(0)` after `init()` if you need the panel dark.
+
+The board headers do not include `ch422g_expander.h`, so
+`common::LEVEL_LOW` / `LEVEL_HIGH` are not visible from a board-header-only
+include. Use plain `0` / `1`, or include `<ungula/bsp/waveshare.h>` as well.
+
 ### Shared CH422G owner (`ungula::bsp::waveshare::common`)
 
-Internal to the BSP. Board modules call `ensureInit()` / `writePin()` on this owner; host projects should not use it directly — go through the board module's purpose-named helpers instead.
+Board modules call this owner; host projects should normally go through the
+board module's purpose-named helpers instead. It is public so a consumer can
+reach an expander pin the board module doesn't wrap (today only `USB_SEL`).
+
+```cpp
+#include <ungula/bsp/waveshare/common/ch422g_expander.h>   // or the umbrella header
+
+namespace ungula::bsp::waveshare::common {
+
+constexpr uint8_t LEVEL_LOW  = 0;
+constexpr uint8_t LEVEL_HIGH = 1;
+
+enum class PinMode : uint8_t { Output = 0, Input = 1 };   // declared, not used by any API
+
+bool ensureInit(int8_t sdaPin, int8_t sclPin, uint8_t outputPinsMask);
+void writePin(uint8_t pinNumber, uint8_t level);
+bool isReady();
+
+}
+```
+
+`ensureInit()` takes `(sda, scl)` and swaps them internally for the
+`esp_expander::CH422G(scl, sda, addr)` constructor. `outputPinsMask` is a
+`uint8_t`, so only CH422G pins 0-7 can be registered. Both `ensureInit()` and
+`isReady()` report on the driver object, not on whether the chip answered — see
+`API.md` for the full caveat.
 
 ## Structure
 
 ```text
 src/
-  ungula_bsp_waveshare.h                        # umbrella header (Arduino discovery)
-  bsp/waveshare/
-    common/
-      ch422g_expander.h / .cpp                  # single CH422G owner
-    boards/
-      esp32s3_touch_lcd_7/
-        board.h / .cpp                          # ungula::bsp::waveshare::lcd7
-      esp32s3_touch_lcd_4_3/
-        board.h / .cpp                          # ungula::bsp::waveshare::lcd43 (pin map TBD)
+  ungula_bsp_waveshare.h                        # flat forwarder (Arduino discovery)
+  ungula/bsp/
+    waveshare.h                                 # umbrella header
+    waveshare/
+      common/
+        ch422g_expander.h / .cpp                # single CH422G owner
+      boards/
+        esp32s3_touch_lcd_7/
+          board.h / .cpp                        # ungula::bsp::waveshare::lcd7
+        esp32s3_touch_lcd_4_3/
+          board.h / .cpp                        # ungula::bsp::waveshare::lcd43 (pin map TBD)
 ```
 
 ## Dependencies
@@ -269,7 +319,7 @@ bundle, or vendor this code** — the host owns the dependency copy.
 
 ## Testing
 
-Host tests cover the pure pin-mask builder in each board's `detail::` namespace — i.e. the "which expander pins get claimed for which enabled subsystems" logic. The actual I²C-and-reset-pulse path needs a real expander on the wire, so it's exercised by the host project that flashes the board, not here.
+Host tests cover the pure pin-mask builder in each board's `detail::` namespace — i.e. the "which expander pins get claimed for which enabled subsystems" logic. Nothing else is covered: `board.cpp` and `ch422g_expander.cpp` are not compiled by the test target at all, so the init ordering, the backlight/blink interaction, and the expander wrapper have no host coverage. That path needs a real expander on the wire and is exercised by the host project that flashes the board.
 
 ```bash
 cd lib_bsp_waveshare/tests
@@ -279,7 +329,7 @@ cd lib_bsp_waveshare/tests
 
 ## Adding a new Waveshare board
 
-1. Create `src/bsp/waveshare/boards/<model>/board.h` + `.cpp` alongside the existing ones.
+1. Create `src/ungula/bsp/waveshare/boards/<model>/board.h` + `.cpp` alongside the existing ones.
 2. Expose the same API surface (`init`, `setBacklight`, `backlightBlink`, `sdCs`, `lcdReset`, `touchReset`, `pins::`, `expander_pins::`) so host code that aliases the namespace can swap models.
 3. Reuse `ungula::bsp::waveshare::common::ensureInit` / `writePin` — don't touch the expander driver directly.
 4. Bump `library.properties` / `.version`, update `docs/LIBRARY_VERSIONS.md`.
