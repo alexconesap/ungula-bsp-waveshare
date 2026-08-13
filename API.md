@@ -34,10 +34,17 @@ Target: ESP32 (`architectures=esp32`). Depends on `UngulaCore`,
 
 ### LLM rules
 
-- Use only symbols and include paths documented in this file; do not infer extra public API from implementation files.
+- Use only symbols and include paths documented in this file; do not infer extra public API from implementation files. Do not include `ungula/bsp/waveshare/common/ch422g_expander.h` directly unless writing a new board module inside this library.
 - Prefer the use-case patterns here over ad-hoc rewrites; keep dependency wiring and lifecycle order identical unless the task explicitly changes API design.
-- Treat headers under `detail/`, `platform/`, and `platforms/` as internal unless this document calls them out as public.
-- If required behavior is missing from the documented API, report the gap explicitly instead of inventing new public symbols.
+- If required behavior is missing from the documented API (e.g. USB-host select), report the gap explicitly instead of inventing new public symbols or reaching past the public surface.
+- Prefer the per-board purpose-named helpers (`setBacklight`, `sdCs`, `lcdReset`, `touchReset`) over `common::writePin`.
+- Never instantiate `esp_expander::CH422G` from host code — the BSP owns the chip. Two owners produces undefined behavior.
+- Pin numbers come from `ungula::bsp::waveshare::<model>::pins::*`. Do not hard-code GPIOs. (`bsp::ws::` in older snippets is an obsolete spelling.)
+- `init()` is the only entry point that must run before other helpers do anything. Helpers are no-ops, not errors, before then.
+- Do not treat `init()`'s `true` as a health check, and do not write host code that branches on it expecting a hardware failure path — it never returns `false` on target today.
+- `common::LEVEL_LOW` / `LEVEL_HIGH` live in `ch422g_expander.h`, which the board headers do NOT include. In host code that only includes a board header, write plain `0` / `1` for `initialBacklight` and `setBacklight`.
+- `delay()` / `millis()` / `digitalWrite()` are not used by this library; do not introduce them when extending it (use `ungula::core::time` and the shared expander instead).
+- Preserve the namespace path (`ungula::bsp::waveshare::lcd7`, `ungula::bsp::waveshare::common`) exactly — these are the documented entry points.
 
 
 ## Usage
@@ -460,66 +467,22 @@ Violation behavior:
 
 ---
 
-## Recommended improvements (proposed — not yet implemented)
+## Known gaps
 
-The library is mostly deep, but a few sharp edges stand out:
+Current behavior, not a roadmap. Do not write host code that assumes any of
+these is fixed.
 
-1. **Propagate the CH422G driver's return codes.** `ensureInit()` discards the
-   results of `init()`, `begin()` and `multiPinMode()`, and `writePin()`
-   discards `digitalWrite()`'s, so the whole layer reports success
-   unconditionally on target. This is the most user-visible gap: a dead or
-   unwired expander is indistinguishable from a healthy one. Fixing it should
-   come before the cosmetic items below, and pairs naturally with an
-   `InitResult` enum (`Ok`, `AlreadyInitialized`, `I2cNack`, `ConfigConflict`)
-   in place of `bool`.
-2. **Real LCD/touch reset pulse in `init()`.** Today it only releases the reset
-   lines. Every host ends up writing the assert → wait → release itself, which
-   is exactly the glue the BSP exists to absorb.
-3. **`initialBacklight` should stick.** `init()` applies it and then blinks,
-   and the blink ends "on", so the requested level is always discarded. Either
-   re-apply the level after the blink or make the blink opt-in via `Config`.
-2. **`USB_SEL` purpose-named helper.** `expander_pins::USB_SEL` is the
-   only board-level pin without a wrapper, forcing host code into the
-   `common::writePin` back-door. Proposed: `void usbSelect(bool host)`
-   on each board module.
-3. **Compile-time board selector.** A small wrapper header that picks
-   `lcd7` vs `lcd43` from a build flag would let host code drop the
-   `namespace board = ...;` alias dance. Proposed:
-   `<ungula/bsp/waveshare/board.h>` driven by `BOARD_WAVESHARE_S3_LCD7` /
-   `BOARD_WAVESHARE_S3_LCD43`.
-4. **`Config` validation.** `initialBacklight` accepts any `uint8_t` but
-   only `0` and `1` are meaningful. Proposed: `enum class Backlight :
-   uint8_t { Off = 0, On = 1 };` field.
-5. **4.3" pin map.** Confirm the schematic and remove the
-   `TODO(waveshare-4.3)` placeholders.
+1. **I2C return codes are never checked.** `ensureInit()` drops the results of
+   `init()`, `begin()` and `multiPinMode()`; `writePin()` drops
+   `digitalWrite()`'s. On target the layer always reports success, so a dead or
+   unwired expander looks identical to a healthy one.
+2. **No reset pulse.** `init()` only releases the LCD and touch reset lines
+   (`lcdReset(false)` / `touchReset(false)`). The assert → wait → release
+   sequence stays in host code.
+3. **`initialBacklight` does not stick.** `init()` applies it, then
+   `backlightBlink()` runs and ends "on", so the requested level is lost.
+4. **`expander_pins::USB_SEL` has no purpose-named helper.** It is the one
+   board-level pin that still needs the `common::writePin` back-door.
+5. **The 4.3" pin map is unverified.** `board.h` and `board.cpp` for that model
+   still carry `TODO(waveshare-4.3)` markers.
 
-Treat every item above as a proposal, not as existing API.
-
----
-
-## LLM usage rules
-
-- Use only the symbols documented here. Do not include
-  `ungula/bsp/waveshare/common/ch422g_expander.h` directly unless writing a new
-  board module inside this library.
-- Prefer the per-board purpose-named helpers (`setBacklight`, `sdCs`,
-  `lcdReset`, `touchReset`) over `common::writePin`.
-- Never instantiate `esp_expander::CH422G` from host code — the BSP
-  owns the chip. Two owners produces undefined behavior.
-- Pin numbers come from `ungula::bsp::waveshare::<model>::pins::*`. Do not
-  hard-code GPIOs. (`bsp::ws::` in older snippets is an obsolete spelling.)
-- `init()` is the only entry point that must run before other helpers
-  do anything. Helpers are no-ops, not errors, before then.
-- Do not treat `init()`'s `true` as a health check, and do not write host code
-  that branches on it expecting a hardware failure path — it never returns
-  `false` on target today.
-- `common::LEVEL_LOW` / `LEVEL_HIGH` live in `ch422g_expander.h`, which the
-  board headers do NOT include. In host code that only includes a board header,
-  write plain `0` / `1` for `initialBacklight` and `setBacklight`.
-- `delay()` / `millis()` / `digitalWrite()` are not used by this
-  library; do not introduce them when extending it (use
-  `ungula::core::time` and the shared expander instead).
-- If a needed feature is missing (e.g. USB-host select), say so
-  explicitly rather than reaching past the public surface.
-- Preserve the namespace path (`ungula::bsp::waveshare::lcd7`, `ungula::bsp::waveshare::common`)
-  exactly — these are the documented entry points.
